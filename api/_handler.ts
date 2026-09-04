@@ -24,7 +24,9 @@ async function persistGeneration(user: string, request: any, result: any) { cons
 async function parseMultipart(req: VercelRequest): Promise<{ bytes: Buffer; mime: string }> { return new Promise((resolve, reject) => { const bb = Busboy({ headers: req.headers as Record<string, string> }); let bytes = Buffer.alloc(0); let mime = 'image/png'; bb.on('file', (_name, stream, info) => { mime = info.mimeType; stream.on('data', (chunk: Buffer) => { bytes = Buffer.concat([bytes, chunk]); if (bytes.length > 10 * 1024 * 1024) stream.destroy(new Error('La referencia no puede superar 10 MB.')) }); }); bb.on('finish', () => bytes.length ? resolve({ bytes, mime }) : reject(new Error('Debes subir una imagen.'))); bb.on('error', reject); req.pipe(bb) }) }
 
 export async function handler(req: VercelRequest, res: VercelResponse) {
-  const path = (req.url || '').split('?')[0].replace(/^\/api\/?/, '').replace(/\/$/, '') || 'health'
+  const queryPath = req.query?.path
+  const pathFromQuery = Array.isArray(queryPath) ? queryPath.join('/') : typeof queryPath === 'string' ? queryPath : ''
+  const path = (pathFromQuery || (req.url || '').split('?')[0].replace(/^\/api\/?/, '').replace(/\/$/, '') || 'health').replace(/^index\/?/, '') || 'health'
   try {
     if (req.method === 'GET' && path === 'health') return json(res, 200, { status: 'ok', supabase_configured: Boolean(env.supabaseUrl && env.anon), cavoti_configured: Boolean(env.cavotiKey) })
     if (req.method === 'GET' && path === 'models') return json(res, 200, models)
